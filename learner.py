@@ -2,6 +2,7 @@ from multiprocessing import Process
 import time
 import numpy as np
 import torch
+import tqdm
 from torch.nn import functional as F
 
 from replay_buffer import ReplayBuffer
