@@ -27,6 +27,9 @@ class Learner(Process):
         # send to model pool
         model_pool.push(model.state_dict()) # push cpu-only tensor to model_pool
         model = model.to(device)
+
+        # record the losses
+        file_path = "./loss.txt"
         
         # training
         optimizer = torch.optim.Adam(model.parameters(), lr = self.config['lr'])
@@ -51,12 +54,13 @@ class Learner(Process):
             targets = torch.tensor(batch['target']).to(device)
             
             print('Iteration %d, replay buffer in %d out %d' % (iterations, self.replay_buffer.stats['sample_in'], self.replay_buffer.stats['sample_out']))
-            
+
             # calculate PPO loss
             model.train(True) # Batch Norm training mode
             old_logits, _ = model(states)
             old_probs = F.softmax(old_logits, dim = 1).gather(1, actions)
             old_log_probs = torch.log(old_probs).detach()
+            total_loss = 0
             for _ in range(self.config['epochs']):
                 logits, values = model(states)
                 action_dist = torch.distributions.Categorical(logits = logits)
@@ -69,9 +73,15 @@ class Learner(Process):
                 value_loss = torch.mean(F.mse_loss(values.squeeze(-1), targets))
                 entropy_loss = -torch.mean(action_dist.entropy())
                 loss = policy_loss + self.config['value_coeff'] * value_loss + self.config['entropy_coeff'] * entropy_loss
+                total_loss += loss.detach().item()
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+            
+            total_loss = total_loss/self.config['epochs']
+            content = "Iteration: " + str(iterations) + "; Loss: " + str(total_loss) + "\n"
+            with open(file_path, "a") as file:
+                    file.write(content)
 
             # push new model
             model = model.to('cpu')
