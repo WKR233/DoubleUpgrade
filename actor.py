@@ -1,6 +1,7 @@
 from multiprocessing import Process
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from replay_buffer import ReplayBuffer
 from model_pool import ModelPoolClient
@@ -36,7 +37,7 @@ class Actor(Process):
         self.wrapper = cardWrapper()
         policies = {player : model for player in env.agent_names} # all four players use the latest model
         
-        for episode in range(self.config['episodes_per_actor']):
+        for episode in tqdm(range(self.config['episodes_per_actor'])):
             # update model
             latest = model_pool.get_latest_model()
             if latest['id'] > version['id']:
@@ -85,7 +86,7 @@ class Actor(Process):
                     for agent_name in rewards: 
                         episode_data[agent_name]['reward'].append(rewards[agent_name])
                 obs = next_obs
-            print(self.name, 'Episode', episode, 'Model', latest['id'], 'Reward', rewards)
+            #print(self.name, 'Episode', episode, 'Model', latest['id'], 'Reward', rewards)
             
             # postprocessing episode data for each agent
             for agent_name, agent_data in episode_data.items():

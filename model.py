@@ -8,9 +8,15 @@ class CNNModel(nn.Module):
         self._tower = nn.Sequential(
             nn.Conv2d(128, 256, 3, 1, 1, bias = False),
             nn.ReLU(True),
-            nn.Conv2d(256, 256, 3, 1, 1, bias = False),
+            nn.Conv2d(256, 512, 3, 1, 1, bias = False),
             nn.ReLU(True),
-            nn.Conv2d(256, 32, 3, 1, 1, bias = False),
+            nn.Conv2d(512, 256, 3, 1, 1, bias = False),
+            nn.ReLU(True),
+            nn.Conv2d(256, 128, 3, 1, 1, bias = False),
+            nn.ReLU(True),
+            nn.Conv2d(128, 64, 3, 1, 1, bias = False),
+            nn.ReLU(True),
+            nn.Conv2d(64, 32, 3, 1, 1, bias = False),
             nn.ReLU(True),
             nn.Flatten()
         )
