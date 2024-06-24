@@ -19,7 +19,7 @@ if __name__ == '__main__':
         'lr': 3e-5,
         'value_coeff': 1,
         'entropy_coeff': 0.01,
-        'device': 'cpu',
+        'device': 'cuda',
         'ckpt_save_interval': 300,
         'ckpt_save_path': 'checkpoint/'
     }

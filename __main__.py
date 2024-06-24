@@ -144,31 +144,30 @@ def cover_Pub(old_public, deck):
 ## 从底牌拿走主牌和副牌里的A，将副牌里的分扣回底牌，然后将剩下的底牌和手牌排序去掉小牌
     deck_poker = [Num2Poker(id) for id in deck]
     dipai_poker = [Num2Poker(id) for id in old_public]
-    changed_num = 0
+    disposed_num = 0
     dispose = []
     for dipai_p in dipai_poker:
-        if changed_num >= 8:
-            break
         if dipai_p[1] == 'A' and dipai_p not in Major:
             old_public.remove(Poker2Num(dipai_p, old_public))
-            changed_num += 1
+            dipai_poker.remove(dipai_p)
         elif dipai_p in Major:
             old_public.remove(Poker2Num(dipai_p, old_public))
-            changed_num += 1
-        elif dipai_p[1] == '5' or dipai_p[1] == '10' or dipai_p[1] == 'K':
+            dipai_poker.remove(dipai_p)
+        elif dipai_p[1] == '5':
             dispose += [Poker2Num(dipai_p, old_public)]
             old_public.remove(Poker2Num(dipai_p, old_public))
+            dipai_poker.remove(dipai_p)
+            disposed_num += 1
     for i in pointorder:
-        if changed_num <= 0:
+        if disposed_num >= 8:
             break
-        for deck_p in deck_poker + old_public:
-            if changed_num <= 0:
+        for deck_p in deck_poker + dipai_poker:
+            if disposed_num >= 8:
                 break
-            if deck_p not in Major and (Poker2Num(deck_p, deck) + 54) % 108 not in deck:
+            if deck_p not in Major and (Poker2Num(deck_p, deck + old_public) + 54) % 108 not in deck + old_public:
                 if deck_p[1] == i:
-                    dispose += [Poker2Num(deck_p, deck)]
-                    changed_num-=1
-    dispose += old_public
+                    dispose += [Poker2Num(deck_p, deck + old_public)]
+                    disposed_num+=1
 
 
         
@@ -238,7 +237,7 @@ else:
 
 # loading model
 model = CNNModel()
-data_dir = '/data/model_6172.pt' # to be modified
+data_dir = '/data/model_9458.pt' # to be modified
 model.load_state_dict(torch.load(data_dir, map_location = torch.device('cpu')))
 
 hold = []
@@ -272,13 +271,15 @@ if curr_request["stage"] == "deal":
     response = call_Snatch(get_card, hold, called, snatched, level)
 elif curr_request["stage"] == "cover":
     publiccard = curr_request["deliver"]
-    response = cover_Pub(publiccard, hold)
-elif curr_request["stage"] == "play":
     level = curr_request["global"]["level"]
     major = curr_request["global"]["banking"]["major"]
     setMajor(major, level)
+    response = cover_Pub(publiccard, hold)
+elif curr_request["stage"] == "play":
     # instantiate move_generator and cardwrapper 
     card_wrapper = cardWrapper()
+    level = curr_request["global"]["level"]
+    major = curr_request["global"]["banking"]["major"]
     mv_gen = move_generator(level, major)
     
     history = curr_request["history"]
