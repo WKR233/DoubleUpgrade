@@ -98,22 +98,82 @@ def call_Snatch(get_card, deck, called, snatched, level):
 # level: level
 # return -> list[int]
     response = []
-## 目前的策略是一拿到牌立刻报/反，之后不再报/反
-## 不反无主
     deck_poker = [Num2Poker(id) for id in deck]
     get_poker = Num2Poker(get_card)
+
+    color = get_poker[0]
+    same_color = 0
+    has_level = 0
+    level_card = []
     if get_poker[1] == level:
-        if called == -1:
-            response = [get_card]
-        elif snatched == -1:
-            if (get_card + 54) % 108 in deck:
-                response = [get_card, (get_card + 54) % 108]
+        level_card = [get_card]
+        has_level += 1
+    if deck_poker != []:
+        for deck_p in deck_poker:
+            if deck_p[0] == color:
+                same_color+= 1
+                if deck_p[1] == level:
+                    level_card = level_card + [Poker2Num(deck_p, deck)]
+                    has_level += 1
+    # 如果摸到的牌对应花色张数大于五张,并且有对应级牌再叫主            
+    if called == -1:
+        if same_color >= 4 and has_level:
+            response = [level_card[0]]
+    # 如果摸到的牌对应花色张数大于五张,并且有两张对应级牌再叫主 
+    elif snatched == -1:
+        if same_color >= 4 and has_level == 2:
+            response = level_card
+
+
+## 目前的策略是一拿到牌立刻报/反，之后不再报/反
+## 不反无主
+    # deck_poker = [Num2Poker(id) for id in deck]
+    # get_poker = Num2Poker(get_card)
+    # if get_poker[1] == level:
+    #     if called == -1:
+    #         response = [get_card]
+    #     elif snatched == -1:
+    #         if (get_card + 54) % 108 in deck:
+    #             response = [get_card, (get_card + 54) % 108]
+
     return response
 
 def cover_Pub(old_public, deck):
 # old_public: raw publiccard (list[int])
 ## 直接盖回去
-    return old_public
+## 从底牌拿走主牌和副牌里的A，将副牌里的分扣回底牌，然后将剩下的底牌和手牌排序去掉小牌
+    deck_poker = [Num2Poker(id) for id in deck]
+    dipai_poker = [Num2Poker(id) for id in old_public]
+    changed_num = 0
+    dispose = []
+    for dipai_p in dipai_poker:
+        if changed_num >= 8:
+            break
+        if dipai_p[1] == 'A' and dipai_p not in Major:
+            old_public.remove(Poker2Num(dipai_p, old_public))
+            changed_num += 1
+        elif dipai_p in Major:
+            old_public.remove(Poker2Num(dipai_p, old_public))
+            changed_num += 1
+        elif dipai_p[1] == '5' or dipai_p[1] == '10' or dipai_p[1] == 'K':
+            dispose += [Poker2Num(dipai_p, old_public)]
+            old_public.remove(Poker2Num(dipai_p, old_public))
+    for i in pointorder:
+        if changed_num <= 0:
+            break
+        for deck_p in deck_poker + old_public:
+            if changed_num <= 0:
+                break
+            if deck_p not in Major and (Poker2Num(deck_p, deck) + 54) % 108 not in deck:
+                if deck_p[1] == i:
+                    dispose += [Poker2Num(deck_p, deck)]
+                    changed_num-=1
+    dispose += old_public
+
+
+        
+
+    return dispose
 
 def playCard(history, hold, played, selfid, wrapper, mv_gen, model):
     # generating obs
@@ -178,7 +238,7 @@ else:
 
 # loading model
 model = CNNModel()
-data_dir = '/data/tractor_model.pt' # to be modified
+data_dir = '/data/model_6172.pt' # to be modified
 model.load_state_dict(torch.load(data_dir, map_location = torch.device('cpu')))
 
 hold = []
