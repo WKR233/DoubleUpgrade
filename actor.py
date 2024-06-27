@@ -1,7 +1,6 @@
 from multiprocessing import Process
 import numpy as np
 import torch
-from tqdm import tqdm
 
 from replay_buffer import ReplayBuffer
 from model_pool import ModelPoolClient
@@ -36,8 +35,10 @@ class Actor(Process):
         env = TractorEnv()
         self.wrapper = cardWrapper()
         policies = {player : model for player in env.agent_names} # all four players use the latest model
+
+        reward_list = np.zeros([self.config['episodes_per_actor'],4])
         
-        for episode in tqdm(range(self.config['episodes_per_actor'])):
+        for episode in range(self.config['episodes_per_actor']):
             # update model
             latest = model_pool.get_latest_model()
             if latest['id'] > version['id']:
@@ -86,7 +87,7 @@ class Actor(Process):
                     for agent_name in rewards: 
                         episode_data[agent_name]['reward'].append(rewards[agent_name])
                 obs = next_obs
-            #print(self.name, 'Episode', episode, 'Model', latest['id'], 'Reward', rewards)
+            # print(self.name, 'Episode', episode, 'Model', latest['id'], 'Reward', rewards)
             
             # postprocessing episode data for each agent
             for agent_name, agent_data in episode_data.items():
@@ -119,5 +120,14 @@ class Actor(Process):
                     'adv': advantages,
                     'target': td_target
                 })
+
+                one_time_reward = np.mean(rewards)
+                reward_list[episode][int(agent_name[7])] = one_time_reward
+        reward_result = np.zeros([self.config['episodes_per_actor'], 1])
+        for i in range (self.config['episodes_per_actor']):
+            reward_result[i] = np.mean(reward_list[i][:])
+        np.savetxt("./reward" + str(self.name) + ".txt", reward_result.transpose(), fmt = "%.3f", delimiter = ', ')
+        # with open("./reward" + str(self.name) + ".txt", 'w') as rewardfd:
+        #     rewardfd.write(str(reward_list))
         
         

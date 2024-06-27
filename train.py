@@ -38,3 +38,4 @@ if __name__ == '__main__':
     
     for actor in actors: actor.join()
     learner.terminate()
+    actor.terminate()
