@@ -1,6 +1,7 @@
 import random
 from collections import Counter
 from mvGen import move_generator
+import numpy as np
 
 class Error(Exception):
     def __init__(self, ErrorInfo):
@@ -254,7 +255,7 @@ class TractorEnv():
             elif p[1] == "0" or p[1] == "K":
                 publicscore += 10
         
-        self._reward(publicscore*mult, winner)        
+        self._reward(publicscore*mult, winner, 0, 0, 0)        
     
     def _setMajor(self):
         if self.major != 'n': # 非无主
@@ -734,6 +735,13 @@ class TractorEnv():
         histo = history + []
         hist = [[self._id2name(p) for p in x] for x in histo]
         score = 0 
+
+        _kill = 0
+        _tractor = 0
+        _throw = 0
+        _double = 0
+        first_player = (currplayer-3)%4
+
         for move in hist:
             for pok in move:
                 if pok[1] == "5":
@@ -765,6 +773,7 @@ class TractorEnv():
                 if win_move[0] not in self.Major and hist[i][0] in self.Major: # 主牌压副牌，必须的
                     win_move = hist[i]
                     win_seq = i
+                    _kill = 1
                 # 两步判断后，只剩下hist[i]和win_move都是主牌的情况
                 elif len(first_parse[0]) >= 4: # 有拖拉机再叫我checkThrow来
                     if major == 'n': # 如果这里无主，拖拉机只可能是对大小王，不可能有盖毙
@@ -774,6 +783,7 @@ class TractorEnv():
                     if self.Major.index(win_parse[0][-1]) < self.Major.index(move_parse[0][-1]):
                         win_move = hist[i]
                         win_seq = i
+                        _throw = 1
                 else: 
                     step = len(first_parse[0])
                     win_count = Counter(win_move)
@@ -835,16 +845,24 @@ class TractorEnv():
                     if hist[i][0] in self.Major: # 主牌，正确牌型，必压
                         win_move = hist[i]
                         win_seq = i
+                        _kill = 1
                     elif self.point_order.index(win_move[0][-1]) < self.point_order.index(hist[i][0][-1]):
                         win_move = hist[i]
                         win_seq = i
         # 找到获胜方，加分
         win_id = (currplayer - 3 + win_seq) % 4
-        self._reward(win_id, score)
+        self._reward(win_id, score, _kill, _throw, first_player)
 
         return win_id
     
-    def _reward(self, player, points):
+    def _reward(self, player, points, kill, throw, first):
+
+        level = self.level
+        major = self.major
+        history = self.history
+        histo = history + []
+        hist = [[self._id2name(p) for p in x] for x in histo]
+
         if (player-self.banker_pos) % 2 != 0: # farmer getting points
             self.score += points
         self.reward = {}
@@ -853,6 +871,42 @@ class TractorEnv():
                 self.reward[self.agent_names[i]] = points
             else:
                 self.reward[self.agent_names[i]] = -points
+        for i in range(4):
+            if i == player:
+                if kill:
+                    self.reward[self.agent_names[i]] += 1
+                    # print("用主毙加分")
+            if i == first:
+                move = hist[0]
+                length = len(hist[0])
+                if throw:
+                    self.reward[self.agent_names[i]] += 3
+                    # print("出拖拉机加分")
+                elif length == 2:
+                    self.reward[self.agent_names[i]] += 2
+                    # print("出对子加分")
+                elif hist[0][0] not in self.Major:
+                    if hist[0][0][1] == 'A':
+                        self.reward[self.agent_names[i]] += 1
+                        # print("出A加分")
+            if np.absolute(i - player) == 2:
+                move = hist[(i - first) % 4]
+                for pok in move:
+                    if pok[1] == '5' or pok[1] == '0' or pok[1] == 'K':
+                        self.reward[self.agent_names[i]] += 2
+                        # print("对家分牌加分")
+            if np.absolute(i - player) == 1:
+                move = hist[(i - first) % 4]
+                for pok in move:
+                    if pok[1] == '5' or pok[1] == '0' or pok[1] == 'K':
+                        self.reward[self.agent_names[i]] -= 2
+                        # print("邻家分牌减分")
+                    if pok[1] in ['3', '4', '6', '7', '8', '9']:
+                        self.reward[self.agent_names[i]] += 1
+                        # print("邻家小牌加分")
+
+
+        
 
     def _punish(self, player, points):
         if (player-self.banker_pos) % 2 != 0:
