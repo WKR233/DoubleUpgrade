@@ -81,7 +81,7 @@ class Learner(Process):
             total_loss = total_loss/self.config['epochs']
             content = "Iteration: " + str(iterations) + "; Loss: " + str(total_loss) + "\n"
             with open(file_path, "a") as file:
-                    file.write(content)
+                file.write(content)
 
             # push new model
             model = model.to('cpu')
