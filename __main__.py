@@ -237,7 +237,7 @@ else:
 
 # loading model
 model = CNNModel()
-data_dir = '/data/model_9458.pt' # to be modified
+data_dir = '/data/model_3388.pt' # to be modified
 model.load_state_dict(torch.load(data_dir, map_location = torch.device('cpu')))
 
 hold = []
